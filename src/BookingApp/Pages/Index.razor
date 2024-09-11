@@ -1,0 +1,116 @@
+﻿@using BookingApp.Models
+@page "/"
+@inject IJSRuntime JSRuntime
+
+<div class="container">
+  <div class="details-container">
+    @if (Context is not null)
+    {
+      <div class="detail-row">
+        <div class="detail-field">
+          <div>Booking ID:</div>
+          <div>@Context.Id</div>
+        </div>
+        <div class="detail-field">
+          <div>Attendee Name:</div>
+          <div>@Context.AttendeeName</div>
+        </div>
+      </div>
+      <div class="detail-row">
+        <div class="detail-field">
+          <div>Current State:</div>
+          <div>@Context.Status</div>
+        </div>
+        <div class="detail-field">
+          <div>Tickets:</div>
+          <div>@Context.TicketQuantity</div>
+        </div>
+      </div>
+    }
+  </div>
+  <div class="status-container">
+    @if (Context is not null)
+    {
+      if (Context.Status is BookingStatus.New)
+      {
+        <form class="submission-form">
+          <div class="form-group">
+            <label for="attendeeName">Attendee Name:</label>
+            <input id="attendeeName" name="attendeeName" type="text" @bind="AttendeeName"/>
+          </div>
+          <div class="form-group">
+            <label for="ticketQuantity">Number of Tickets:</label>
+            <input 
+              id="ticketQuantity" 
+              name="ticketQuantity" 
+              type="number" 
+              min="1"
+              @bind="TicketQuantity"
+            />
+          </div>
+        </form>
+      }
+      if (Context.Status is BookingStatus.Closed)
+      {
+        <h2>@Context.ClosedReason</h2>
+      }
+      if (Context.Status is BookingStatus.Pending)
+      {
+        <h2>Processing your booking</h2>
+      }
+      if (Context.Status is BookingStatus.Booked)
+      {
+        <h2>Booking confirmed</h2>
+      }
+    }
+    else
+    {
+      <h2>Register for the upcoming event</h2>
+    }
+  </div>
+  <div class="buttons-container">
+    <button type="button" @onclick="NewBooking">New Booking</button>
+    <button type="button" @onclick="SubmitBooking" disabled="@(Context is null)">Submit</button>
+    <button type="button" @onclick="CancelBooking" disabled="@(Context is null)">Cancel</button>
+    <button type="button" @onclick="DatePassed" disabled="@(Context is null)">Date Passed</button>
+  </div>
+</div>
+
+@code
+{
+  private BookingContext? Context = null;
+  private string AttendeeName = string.Empty;
+  private int TicketQuantity = 1;
+
+  private void NewBooking()
+  {
+    Context = new BookingContext();
+  }
+
+  private async Task PerformAction(Action action)
+  {
+    try
+    {
+      action();
+      AttendeeName = string.Empty;
+      TicketQuantity = 1;
+    }
+    catch (Exception ex)
+    {
+      Console.WriteLine(ex.Message);
+
+      if (JSRuntime is not null)
+      {
+        await JSRuntime.InvokeVoidAsync("alert", ex.Message);
+      }
+    }
+  }
+
+  private async Task CancelBooking() => await PerformAction(Context!.Cancel);
+
+  private async Task DatePassed() => await PerformAction(Context!.DatePassed);
+
+  // This blocks so you can't actually see the Pending state...not sure what to do about that
+  // without some more research...moving on though
+  private async Task SubmitBooking() => await PerformAction(() => Context!.SubmitDetails(AttendeeName, TicketQuantity));
+}
